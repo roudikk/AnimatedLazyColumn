@@ -3,10 +3,8 @@ package com.roudyk.animatedlazycolumn
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -18,49 +16,92 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyColumn
+import com.roudyk.animatedlazycolumn.animations.AnimatedLazyListItem
+import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyRow
 import com.roudyk.animatedlazycolumn.ui.theme.AnimatedLazyColumnTheme
 
 class MainActivity : ComponentActivity() {
 
+    @OptIn(ExperimentalStdlibApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val viewModel = viewModel<MainViewModel>()
             AnimatedLazyColumnTheme {
-                val state = rememberLazyListState()
+                val columnState = rememberLazyListState()
+                val topRowState = rememberLazyListState()
+                val rowState = rememberLazyListState()
                 val items by viewModel.state.collectAsState(emptyList())
                 Surface {
                     Column {
-                        Row(
-                            modifier = Modifier
-                                .horizontalScroll(rememberScrollState())
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(onClick = { viewModel.addItem() }) {
-                                Text(text = "Add Item")
+                        AnimatedLazyRow(
+                            state = topRowState,
+                            contentPadding = PaddingValues(start = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            items = buildList {
+                                add(AnimatedLazyListItem(
+                                    key = "add-item",
+                                    value = "add-item"
+                                ) {
+                                    Button(onClick = { viewModel.addItem() }) {
+                                        Text(text = "Add Item")
+                                    }
+                                })
+                                add(AnimatedLazyListItem(
+                                    key = "add-item-end",
+                                    value = "add-item-end"
+                                ) {
+                                    Button(onClick = { viewModel.addItemEnd() }) {
+                                        Text(text = "Add Item End")
+                                    }
+                                })
+                                add(AnimatedLazyListItem(
+                                    key = "add-random-item",
+                                    value = "add-random-item"
+                                ) {
+                                    Button(onClick = { viewModel.addRandomItem() }) {
+                                        Text(text = "Add random item")
+                                    }
+                                })
+                                add(AnimatedLazyListItem(
+                                    key = "remove-random-item",
+                                    value = "remove-random-item"
+                                ) {
+                                    Button(onClick = { viewModel.removeRandomItem() }) {
+                                        Text(text = "Remove random Item")
+                                    }
+                                })
+                                add(AnimatedLazyListItem(
+                                    key = "clear",
+                                    value = "clear"
+                                ) {
+                                    Button(onClick = { viewModel.clearItems() }) {
+                                        Text(text = "Clear")
+                                    }
+                                })
                             }
-                            Button(onClick = { viewModel.addItemEnd() }) {
-                                Text(text = "Add Item End")
+                        )
+                        AnimatedLazyRow(
+                            state = columnState,
+                            modifier = Modifier,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(top = 16.dp),
+                            reverseLayout = false,
+                            items = items.map {
+                                AnimatedLazyListItem(key = it.id, value = it.text) {
+                                    TextItem(viewModel, it, Modifier.width(300.dp))
+                                }
                             }
-                            Button(onClick = { viewModel.addRandomItem() }) {
-                                Text(text = "Add random item")
-                            }
-                            Button(onClick = { viewModel.removeRandomItem() }) {
-                                Text(text = "Remove random Item")
-                            }
-                            Button(onClick = { viewModel.clearItems() }) {
-                                Text(text = "Clear")
-                            }
-                        }
+                        )
                         AnimatedLazyColumn(
-                            state = state,
+                            state = rowState,
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(top = 16.dp),
                             reverseLayout = false,
                             items = items.map {
-                                KeyItem(key = it.id, value = it.text) {
+                                AnimatedLazyListItem(key = it.id, value = it.text) {
                                     TextItem(viewModel, it)
                                 }
                             }
@@ -73,9 +114,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun TextItem(viewModel: MainViewModel, item: MainItem) {
+private fun TextItem(viewModel: MainViewModel, item: MainItem, modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         elevation = 0.dp
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -101,7 +144,7 @@ private fun TextItem(viewModel: MainViewModel, item: MainItem) {
                         value = textValue,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         onValueChange = { textValue = it },
-                        label = { Text(text = "Move to position") },
+                        label = { Text(text = "Move to") },
                         trailingIcon = {
                             IconButton(onClick = { viewModel.moveToPosition(item, textValue) }) {
                                 Icon(
