@@ -1,5 +1,6 @@
 package com.roudyk.animatedlazycolumn
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.*
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -168,8 +169,9 @@ private class AnimatedColumnViewModel<T>(
             return oldItem.key == newItem.key
         }
 
+        @SuppressLint("DiffUtilEquals")
         override fun areContentsTheSame(oldItem: KeyItem<T>, newItem: KeyItem<T>): Boolean {
-            return oldItem == newItem
+            return oldItem.value == newItem.value
         }
     }
 
