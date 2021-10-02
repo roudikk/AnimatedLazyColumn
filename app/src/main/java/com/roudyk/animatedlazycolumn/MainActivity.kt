@@ -17,7 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyColumn
-import com.roudyk.animatedlazycolumn.animations.AnimatedLazyListItem
+import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyListItem
 import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyRow
 import com.roudyk.animatedlazycolumn.ui.theme.AnimatedLazyColumnTheme
 
@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
                     Column {
                         AnimatedLazyRow(
                             state = topRowState,
-                            contentPadding = PaddingValues(start = 16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, top = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             items = buildList {
                                 add(AnimatedLazyListItem(

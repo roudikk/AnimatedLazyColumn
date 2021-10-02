@@ -1,11 +1,11 @@
 package com.roudyk.animatedlazycolumn.animations
 
 import android.annotation.SuppressLint
-import androidx.compose.runtime.Composable
 import androidx.recyclerview.widget.AsyncDifferConfig
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListUpdateCallback
+import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyListItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
@@ -25,12 +25,6 @@ internal enum class AnimatedItemState {
 internal data class AnimatedItem<T>(
     val value: AnimatedLazyListItem<T>,
     val state: AnimatedItemState
-)
-
-data class AnimatedLazyListItem<out T>(
-    val key: String,
-    val value: T? = null,
-    val composable: @Composable () -> Unit
 )
 
 internal class AnimatedLazyListViewModel<T>(
