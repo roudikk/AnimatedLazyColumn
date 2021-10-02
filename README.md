@@ -1,5 +1,5 @@
-# Animated LazyColumn
- POC of how you can animate LazyColumn insertions/deletions/moving
+# Animated LazyColumn/LazyRow
+ POC of how you can animate LazyColumn/LazyRow insertions/deletions/moving
  
  Note, this is not production ready or a library, but just a POC on a potential workaround until official support for `LazyColumn` animations is available, follow issue tracker:
  https://issuetracker.google.com/issues/150812265
@@ -22,9 +22,19 @@ val state = rememberLazyListState()
 AnimatedLazyColumn(
    state = state,
    items = items.map {
-       KeyItem(key = it.id, value = it.text) {
+       AnimatedLazyListItem(key = it.id, value = it.text) {
            TextItem(viewModel, it)
        }
    }
 )
+
+AnimatedLazyRow(
+   state = state,
+   items = items.map {
+       AnimatedLazyListItem(key = it.id, value = it.text) {
+           TextItem(viewModel, it)
+       }
+   }
+)
+
 ```
