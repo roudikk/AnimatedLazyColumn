@@ -137,15 +137,13 @@ internal class AnimatedLazyListViewModel<T>(
                         }
                     }
                     items.emit(intermediateList.distinctBy { it.value.key })
-                    if (!allRemoved) {
-                        delay(animationDuration.toLong())
-                        items.emit(currentList.map {
-                            AnimatedItem(
-                                value = it,
-                                state = AnimatedItemState.IDLE
-                            )
-                        })
-                    }
+                    delay(animationDuration.toLong())
+                    items.emit(currentList.map {
+                        AnimatedItem(
+                            value = it,
+                            state = AnimatedItemState.IDLE
+                        )
+                    })
                 }
             }
             .launchIn(scope)
