@@ -29,11 +29,11 @@ fun <T> AnimatedLazyRow(
         animationSpec = tween(delayMillis = animationDuration / 3),
     ) + expandHorizontally(
         animationSpec = tween(durationMillis = animationDuration),
-        expandFrom = Alignment.Start
+        expandFrom = if (reverseLayout) Alignment.End else Alignment.Start
     ),
     exit: ExitTransition = fadeOut() + shrinkHorizontally(
         animationSpec = tween(durationMillis = animationDuration),
-        shrinkTowards = Alignment.Start
+        shrinkTowards = if (reverseLayout) Alignment.Start else Alignment.End
     ),
     finalExit: ExitTransition = exit
 ) {
