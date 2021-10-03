@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import com.roudyk.animatedlazycolumn.animations.AnimatedLazyListItem
 import com.roudyk.animatedlazycolumn.animations.AnimatedLazyListViewModel
 import com.roudyk.animatedlazycolumn.animations.animatedLazyListScope
-import kotlinx.coroutines.Dispatchers
 
 @Composable
 fun <T> AnimatedLazyColumn(
@@ -39,7 +38,8 @@ fun <T> AnimatedLazyColumn(
     finalExit: ExitTransition = exit,
 ) {
     val scope = rememberCoroutineScope()
-    val viewModel = remember { AnimatedLazyListViewModel<T>(scope, animationDuration) }
+    val viewModel =
+        remember { AnimatedLazyListViewModel<T>(scope, animationDuration, reverseLayout) }
     viewModel.updateList(items)
     val currentItems by viewModel.items.collectAsState(emptyList())
 

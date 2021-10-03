@@ -3,12 +3,15 @@ package com.roudyk.animatedlazycolumn.animations
 import android.annotation.SuppressLint
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListUpdateCallback
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -23,7 +26,8 @@ internal data class AnimatedItem<T>(
 
 internal class AnimatedLazyListViewModel<T>(
     private val scope: CoroutineScope,
-    private val animationDuration: Int
+    private val animationDuration: Int,
+    private val reverseLayout: Boolean
 ) {
 
     val items = MutableStateFlow<List<AnimatedItem<T>>>(emptyList())
@@ -34,6 +38,7 @@ internal class AnimatedLazyListViewModel<T>(
         val insertedPositions: List<Int>,
         val removedPositions: List<Int>,
         val movedPositions: List<Pair<Int, Int>>,
+        val changedPositions: List<Int>,
         val previousList: List<AnimatedLazyListItem<T>>,
         val currentList: List<AnimatedLazyListItem<T>>
     )
@@ -47,8 +52,17 @@ internal class AnimatedLazyListViewModel<T>(
 
     init {
         itemsUpdateFlow
-            .onEach { (insertedPositions, removedPositions, movedPositions, currentPreviousList, currentList) ->
-                if (insertedPositions.isEmpty() && removedPositions.isEmpty() && movedPositions.isEmpty()) {
+            .onEach { (
+                          insertedPositions,
+                          removedPositions,
+                          movedPositions,
+                          changedPositions,
+                          currentPreviousList,
+                          currentList
+                      ) ->
+                if (insertedPositions.isEmpty() && removedPositions.isEmpty()
+                    && movedPositions.isEmpty() && changedPositions.isEmpty()
+                ) {
                     return@onEach
                 }
                 mutex.withLock {
@@ -100,7 +114,11 @@ internal class AnimatedLazyListViewModel<T>(
                         movedPositions.forEach {
                             val item = currentPreviousList[it.first]
                             intermediateList.add(
-                                if (it.first > intermediateList.size) intermediateList.size else it.first + 1,
+                                if (it.first > intermediateList.size) {
+                                    intermediateList.size
+                                } else {
+                                    it.first + if (reverseLayout) 1 else -1
+                                },
                                 AnimatedItem(
                                     value = item.copy(key = "${item.key}-temp"),
                                     state = AnimatedItemState.REMOVED
@@ -128,13 +146,15 @@ internal class AnimatedLazyListViewModel<T>(
             mutex.withLock {
                 val insertedPositions = mutableListOf<Int>()
                 val removedPositions = mutableListOf<Int>()
+                val changedPositions = mutableListOf<Int>()
                 val movedPositions = mutableListOf<Pair<Int, Int>>()
                 val diffResult = DiffUtil.calculateDiff(ItemsCallback(previousList, currentList))
                 diffResult.dispatchUpdatesTo(
                     ListCallback(
                         insertedPositions,
                         removedPositions,
-                        movedPositions
+                        movedPositions,
+                        changedPositions
                     )
                 )
                 itemsUpdateFlow.emit(
@@ -143,6 +163,7 @@ internal class AnimatedLazyListViewModel<T>(
                         removedPositions = removedPositions,
                         movedPositions = movedPositions,
                         previousList = previousList,
+                        changedPositions = changedPositions,
                         currentList = currentList
                     )
                 )
@@ -173,6 +194,7 @@ internal class AnimatedLazyListViewModel<T>(
         private val insertedPositions: MutableList<Int>,
         private val removedPositions: MutableList<Int>,
         private val movedPositions: MutableList<Pair<Int, Int>>,
+        private val changedPositions: MutableList<Int>,
     ) : ListUpdateCallback {
 
         override fun onInserted(position: Int, count: Int) {
@@ -188,9 +210,15 @@ internal class AnimatedLazyListViewModel<T>(
         }
 
         override fun onMoved(fromPosition: Int, toPosition: Int) {
-            movedPositions.add(fromPosition to toPosition)
+            if (fromPosition == 0 && toPosition == 1 && reverseLayout) {
+                movedPositions.add(toPosition to fromPosition)
+            } else {
+                movedPositions.add(fromPosition to toPosition)
+            }
         }
 
-        override fun onChanged(position: Int, count: Int, payload: Any?) {}
+        override fun onChanged(position: Int, count: Int, payload: Any?) {
+            changedPositions.add(position)
+        }
     }
 }

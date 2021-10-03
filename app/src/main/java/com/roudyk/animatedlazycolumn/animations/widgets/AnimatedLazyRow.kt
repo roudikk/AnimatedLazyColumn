@@ -39,7 +39,8 @@ fun <T> AnimatedLazyRow(
     finalExit: ExitTransition = exit
 ) {
     val scope = rememberCoroutineScope { Dispatchers.Main }
-    val viewModel = remember { AnimatedLazyListViewModel<T>(scope, animationDuration) }
+    val viewModel =
+        remember { AnimatedLazyListViewModel<T>(scope, animationDuration, reverseLayout) }
     viewModel.updateList(items)
     val currentItems by viewModel.items.collectAsState(emptyList())
 
