@@ -1,22 +1,16 @@
 package com.roudyk.animatedlazycolumn.animations
 
 import android.annotation.SuppressLint
-import androidx.recyclerview.widget.AsyncDifferConfig
-import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListUpdateCallback
-import com.roudyk.animatedlazycolumn.animations.widgets.AnimatedLazyListItem
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.lang.Integer.max
 
 internal enum class AnimatedItemState {
     INITIAL, INSERTED, REMOVED, IDLE, ALL_REMOVED
@@ -32,47 +26,31 @@ internal class AnimatedLazyListViewModel<T>(
     private val animationDuration: Int
 ) {
 
-    data class ItemsUpdate<T>(
-        val previousList: List<AnimatedLazyListItem<T>>,
-        val currentList: List<AnimatedLazyListItem<T>>,
-        val insertedPositions: List<Int>,
-        val removedPositions: List<Int>
-    )
-
     val items = MutableStateFlow<List<AnimatedItem<T>>>(emptyList())
 
-    private val mutex = Mutex()
+    private var previousList = emptyList<AnimatedLazyListItem<T>>()
 
-    private val itemDiffer = AsyncListDiffer(
-        ListCallback(),
-        AsyncDifferConfig.Builder(ItemsCallback()).build()
+    data class ItemsUpdate<T>(
+        val insertedPositions: List<Int>,
+        val removedPositions: List<Int>,
+        val movedPositions: List<Pair<Int, Int>>,
+        val previousList: List<AnimatedLazyListItem<T>>,
+        val currentList: List<AnimatedLazyListItem<T>>
     )
 
-    private val diffFlow = MutableSharedFlow<ItemsUpdate<T>>(
+    private var job: Job? = null
+    private val mutex = Mutex()
+    private val itemsUpdateFlow = MutableSharedFlow<ItemsUpdate<T>>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.SUSPEND
     )
 
-    private val insertedPositions = mutableListOf<Int>()
-    private val removedPositions = mutableListOf<Int>()
-    private val movedPositions = mutableListOf<Pair<Int, Int>>()
-
     init {
-        itemDiffer.addListListener { previousList, currentList ->
-            scope.launch {
-                diffFlow.emit(
-                    ItemsUpdate(
-                        previousList,
-                        currentList,
-                        insertedPositions,
-                        removedPositions
-                    )
-                )
-            }
-        }
-
-        diffFlow
-            .onEach { (previousList, currentList, insertedPositions, removedPositions) ->
+        itemsUpdateFlow
+            .onEach { (insertedPositions, removedPositions, movedPositions, currentPreviousList, currentList) ->
+                if (insertedPositions.isEmpty() && removedPositions.isEmpty() && movedPositions.isEmpty()) {
+                    return@onEach
+                }
                 mutex.withLock {
                     if (items.value.isEmpty()) {
                         items.emit(currentList.map {
@@ -85,6 +63,7 @@ internal class AnimatedLazyListViewModel<T>(
                         items.emit(items.value.map {
                             it.copy(state = AnimatedItemState.IDLE)
                         })
+                        previousList = currentList
                         return@onEach
                     }
                     val intermediateList = mutableListOf<AnimatedItem<T>>()
@@ -93,23 +72,22 @@ internal class AnimatedLazyListViewModel<T>(
                         AnimatedItem(
                             value = item,
                             state = when {
-                                insertedPositions.contains(index)
-                                        || movedPositions.find { it.second == index } != null -> {
+                                insertedPositions.contains(index) ||
+                                        movedPositions.find { it.second == index } != null ->
                                     AnimatedItemState.INSERTED
-                                }
                                 else -> AnimatedItemState.IDLE
                             }
                         )
                     })
                     removedPositions.forEach {
-                        val index = max(
+                        val index = Integer.max(
                             0,
                             if (it > intermediateList.size) intermediateList.size - 1 else it
                         )
                         intermediateList.add(
                             index,
                             AnimatedItem(
-                                value = previousList[index],
+                                value = currentPreviousList[index],
                                 state = if (allRemoved) {
                                     AnimatedItemState.ALL_REMOVED
                                 } else {
@@ -120,7 +98,7 @@ internal class AnimatedLazyListViewModel<T>(
                     }
                     if (!allRemoved) {
                         movedPositions.forEach {
-                            val item = previousList[it.first]
+                            val item = currentPreviousList[it.first]
                             intermediateList.add(
                                 if (it.first > intermediateList.size) intermediateList.size else it.first + 1,
                                 AnimatedItem(
@@ -138,67 +116,79 @@ internal class AnimatedLazyListViewModel<T>(
                             state = AnimatedItemState.IDLE
                         )
                     })
+                    previousList = currentList
                 }
             }
             .launchIn(scope)
     }
 
-    fun updateList(newList: List<AnimatedLazyListItem<T>>) {
-        scope.launch {
+    fun updateList(currentList: List<AnimatedLazyListItem<T>>) {
+        job?.cancel()
+        job = scope.launch {
             mutex.withLock {
-                movedPositions.clear()
-                insertedPositions.clear()
-                removedPositions.clear()
-                itemDiffer.submitList(newList)
+                val insertedPositions = mutableListOf<Int>()
+                val removedPositions = mutableListOf<Int>()
+                val movedPositions = mutableListOf<Pair<Int, Int>>()
+                val diffResult = DiffUtil.calculateDiff(ItemsCallback(previousList, currentList))
+                diffResult.dispatchUpdatesTo(
+                    ListCallback(
+                        insertedPositions,
+                        removedPositions,
+                        movedPositions
+                    )
+                )
+                itemsUpdateFlow.emit(
+                    ItemsUpdate(
+                        insertedPositions = insertedPositions,
+                        removedPositions = removedPositions,
+                        movedPositions = movedPositions,
+                        previousList = previousList,
+                        currentList = currentList
+                    )
+                )
             }
         }
     }
 
-    inner class ItemsCallback : DiffUtil.ItemCallback<AnimatedLazyListItem<T>>() {
-        override fun areItemsTheSame(
-            oldItem: AnimatedLazyListItem<T>,
-            newItem: AnimatedLazyListItem<T>
-        ): Boolean {
-            return oldItem.key == newItem.key
+    inner class ItemsCallback(
+        private var previousList: List<AnimatedLazyListItem<T>>,
+        private var newList: List<AnimatedLazyListItem<T>>
+    ) : DiffUtil.Callback() {
+
+        override fun getOldListSize() = previousList.size
+
+        override fun getNewListSize() = newList.size
+
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            return previousList[oldItemPosition].key == newList[newItemPosition].key
         }
 
         @SuppressLint("DiffUtilEquals")
-        override fun areContentsTheSame(
-            oldItem: AnimatedLazyListItem<T>,
-            newItem: AnimatedLazyListItem<T>
-        ): Boolean {
-            return oldItem.value == newItem.value
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            return previousList[oldItemPosition].value == newList[newItemPosition].value
         }
     }
 
-    inner class ListCallback : ListUpdateCallback {
+    inner class ListCallback(
+        private val insertedPositions: MutableList<Int>,
+        private val removedPositions: MutableList<Int>,
+        private val movedPositions: MutableList<Pair<Int, Int>>,
+    ) : ListUpdateCallback {
 
         override fun onInserted(position: Int, count: Int) {
-            scope.launch {
-                mutex.withLock {
-                    for (i in 0 until count) {
-                        insertedPositions.add(position + i)
-                    }
-                }
+            for (i in 0 until count) {
+                insertedPositions.add(position + i)
             }
         }
 
         override fun onRemoved(position: Int, count: Int) {
-            scope.launch {
-                mutex.withLock {
-                    for (i in 0 until count) {
-                        removedPositions.add(position + i)
-                    }
-                }
+            for (i in 0 until count) {
+                removedPositions.add(position + i)
             }
         }
 
         override fun onMoved(fromPosition: Int, toPosition: Int) {
-            scope.launch {
-                mutex.withLock {
-                    movedPositions.add(fromPosition to toPosition)
-                }
-            }
+            movedPositions.add(fromPosition to toPosition)
         }
 
         override fun onChanged(position: Int, count: Int, payload: Any?) {}

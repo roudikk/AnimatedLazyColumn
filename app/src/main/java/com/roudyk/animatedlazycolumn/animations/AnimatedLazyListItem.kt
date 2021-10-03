@@ -1,4 +1,4 @@
-package com.roudyk.animatedlazycolumn.animations.widgets
+package com.roudyk.animatedlazycolumn.animations
 
 import androidx.compose.runtime.Composable
 

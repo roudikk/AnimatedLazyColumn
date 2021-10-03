@@ -40,7 +40,6 @@ internal fun <T> animatedLazyListScope(
                 AnimatedItemState.IDLE -> true
                 AnimatedItemState.ALL_REMOVED -> false
             }
-
             AnimatedVisibility(
                 visibleState = transitionState,
                 enter = when (item.state) {
