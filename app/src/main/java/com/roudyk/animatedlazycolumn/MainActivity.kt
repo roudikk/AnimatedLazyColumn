@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel = viewModel<MainViewModel>()
             AnimatedLazyColumnTheme {
+                var reverseLayout by remember { mutableStateOf(false) }
                 val columnState = rememberLazyListState()
                 val topRowState = rememberLazyListState()
                 val rowState = rememberLazyListState()
@@ -80,14 +81,22 @@ class MainActivity : ComponentActivity() {
                                         Text(text = "Clear")
                                     }
                                 })
+                                add(AnimatedLazyListItem(
+                                    key = "reverse-layout",
+                                    value = "reverse-layout"
+                                ) {
+                                    Button(onClick = { reverseLayout = !reverseLayout }) {
+                                        Text(text = "Reverse")
+                                    }
+                                })
                             }
                         )
                         AnimatedLazyRow(
-                            state = columnState,
+                            state = rowState,
                             modifier = Modifier,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(top = 16.dp),
-                            reverseLayout = false,
+                            reverseLayout = reverseLayout,
                             items = items.map {
                                 AnimatedLazyListItem(key = it.id, value = it.text) {
                                     TextItem(viewModel, it, Modifier.width(300.dp))
@@ -95,11 +104,11 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                         AnimatedLazyColumn(
-                            state = rowState,
+                            state = columnState,
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(top = 16.dp),
-                            reverseLayout = false,
+                            reverseLayout = reverseLayout,
                             items = items.map {
                                 AnimatedLazyListItem(key = it.id, value = it.text) {
                                     TextItem(viewModel, it)

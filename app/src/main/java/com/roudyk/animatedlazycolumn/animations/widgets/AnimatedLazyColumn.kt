@@ -29,13 +29,13 @@ fun <T> AnimatedLazyColumn(
         animationSpec = tween(delayMillis = animationDuration / 3),
     ) + expandVertically(
         animationSpec = tween(durationMillis = animationDuration),
-        expandFrom = Alignment.Top
+        expandFrom = if (reverseLayout) Alignment.Top else Alignment.Bottom
     ),
     exit: ExitTransition = fadeOut() + shrinkVertically(
         animationSpec = tween(durationMillis = animationDuration),
-        shrinkTowards = Alignment.Top
+        shrinkTowards = if (reverseLayout) Alignment.Bottom else Alignment.Top
     ),
-    finalExit: ExitTransition = exit
+    finalExit: ExitTransition = exit,
 ) {
     val scope = rememberCoroutineScope { Dispatchers.Main }
     val viewModel = remember { AnimatedLazyListViewModel<T>(scope, animationDuration) }
