@@ -4,6 +4,8 @@
  Note, this is not production ready or a library, but just a POC on a potential workaround until official support for `LazyColumn` animations is available, follow issue tracker:
  https://issuetracker.google.com/issues/150812265
  
+ (EDIT: The above issue tracker has been updated and there's an experimental modifier for item animations now!)
+ 
  DEMO:
 
 https://user-images.githubusercontent.com/22520376/135706701-1dc1ba4d-3822-476e-b10b-5e2060a00678.mp4
